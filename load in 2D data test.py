@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import glob
 import os
 import copy
+from fname import get_fname
 
 # load in data
 
@@ -19,14 +20,6 @@ proteins = ['Myoglobin', 'HSA', 'Calmodulin', 'cytochrome c', 'phosphorylase b',
             'Choline oxidase', 'Gly 3 phos', 'Ovalbumin', 'b glucuronidase', 'Ribonuclease A', 'Ubiquitin', 'alpha 2 macroglobulin',
             'Chymotrypsinogen A', 'Thaumatin', 'TCI', 'Elastase', 'beta-Lactoglobulin', 'Pepsin', 'Tryp', 'SD', 'IgG', 'Concanavalin A',
             'Peroxidase', 'prealbumin']
-
-alpha_props = [0.7124, 0.6861, 0.5114, 0.4135, 0.4327, 0.3101, 0.3526, 0.2894, 0.3048, 0.2920, 0.2956, 0.2960, 0.2967, 0.2725, 0.2656,
-               0.2337, 0.2086, 0.2530, 0.2902, 0.1758, 0.1774, 0.1579, 0.1245, 0.0735, 0.1063, 0, 0.0583, 0.0988, 0.1104, 0, 0.0265,
-               0.0323, 0, 0.4444, 0.0472]
-
-beta_props = [0, 0, 0.0283, 0, 0.1419, 0.0620, 0.1421, 0.1136, 0.1305, 0.1748, 0.1788, 0.1811, 0.1881, 0.1663, 0.1756, 0.1986, 0.2068,
-              0.2651, 0.3131, 0.2968, 0.3306, 0.3158, 0.2997, 0.3224, 0.3575, 0.2702, 0.3417, 0.4074, 0.4356, 0.3465, 0.3907, 0.4373,
-              0.4336, 0.0196, 0.4803]
 
 def ss(x):
     return [x for _ in range(99)]
@@ -226,9 +219,9 @@ protein_name = {'Myoglobin': ss('Myoglobin'),
                 'Peroxidase': ss_peroxidase('Peroxidase'),
                 'prealbumin': ss_prealbumin('prealbumin')}
 
-
-left_csv_files = glob.glob('A:\Amy\Protein Library\LIFEtime library\LEFT detector\*.csv')
-right_csv_files = glob.glob('A:\Amy\Protein Library\LIFEtime library\RIGHT detector\*.csv')
+fname_left, fname_right = get_fname()
+left_csv_files = glob.glob(fname_left)
+right_csv_files = glob.glob(fname_right)
 
 # for whole 2D
 
