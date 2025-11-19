@@ -8,7 +8,8 @@ Created on Wed Nov 19 15:36:48 2025
 def get_fname():
     from os import name
     if name == 'posix':
-        pass
+        fname_left = '/home/amy/data/LEFT detector/*.csv'
+        fname_right = '/home/amy/data/RIGHT detector/*.csv'
     elif name == 'nt':
         fname_left = 'A:\Amy\Protein Library\LIFEtime library\LEFT detector\*.csv'
         fname_right = 'A:\Amy\Protein Library\LIFEtime library\RIGHT detector\*.csv'
