@@ -12,8 +12,9 @@ import glob
 import os
 import copy
 from fname import get_fname
+from load2DfuncTest import load_in_2D
 
-# load in data
+# list proteins and label dictionaries
 
 proteins = ['Myoglobin', 'HSA', 'Calmodulin', 'cytochrome c', 'phosphorylase b', 'Lysozyme', 'Creatine', 'DT diaphorase', 'Lipoxidase', 
             'Lactoferrin bovin', 'Protease', 'apo transferrin', 'Lactoferrin human', 'Catalase', 'Conalbumin', 'alpha amylase', 
@@ -219,40 +220,17 @@ protein_name = {'Myoglobin': ss('Myoglobin'),
                 'Peroxidase': ss_peroxidase('Peroxidase'),
                 'prealbumin': ss_prealbumin('prealbumin')}
 
+# extract appropriate files 
+
 fname_left, fname_right = get_fname()
 left_csv_files = glob.glob(fname_left)
 right_csv_files = glob.glob(fname_right)
 
-# for whole 2D
+# load in whole 2D
 
-left_proteins_2D = pd.DataFrame()
-right_proteins_2D = pd.DataFrame()
-
-for protein in proteins:
-    left_protein_2D = pd.DataFrame()
-    for left_csv_file in left_csv_files:
-        if protein in left_csv_file:
-            df_2D = pd.read_csv(left_csv_file, delimiter = '\t')
-            stacked_left_df_2D = (pd.DataFrame(df_2D.loc[43:127, '1549.79349786178': '1737.31299582371'])).reset_index(drop = True).T.stack().to_frame().T
-            left_protein_2D = (pd.concat([left_protein_2D, stacked_left_df_2D], axis = 0)).reset_index(drop = True)
-    left_protein_2D['label'] = pd.DataFrame(class_labels.get(protein))
-    left_protein_2D['alpha'] = pd.DataFrame(alpha_labels.get(protein))
-    left_protein_2D['beta'] = pd.DataFrame(beta_labels.get(protein))
-    left_protein_2D['group'] = pd.DataFrame(group_name.get(protein))
-    left_protein_2D['protein'] = pd.DataFrame(protein_name.get(protein))
-    left_proteins_2D = (pd.concat([left_proteins_2D, left_protein_2D], axis = 0)).reset_index(drop = True)   
-    right_protein_2D = pd.DataFrame()
-    for right_csv_file in right_csv_files:
-        if protein in right_csv_file:
-            df_2D = pd.read_csv(right_csv_file, delimiter = '\t')
-            stacked_right_df_2D = (pd.DataFrame(df_2D.loc[16:100, '1549.79349786178': '1737.31299582371'])).reset_index(drop = True).T.stack().to_frame().T
-            right_protein_2D = (pd.concat([right_protein_2D, stacked_right_df_2D], axis = 0)).reset_index(drop = True)
-    right_protein_2D['label'] = pd.DataFrame(class_labels.get(protein))
-    right_protein_2D['alpha'] = pd.DataFrame(alpha_labels.get(protein))
-    right_protein_2D['beta'] = pd.DataFrame(beta_labels.get(protein))
-    right_protein_2D['group'] = pd.DataFrame(group_name.get(protein))
-    right_protein_2D['protein'] = pd.DataFrame(protein_name.get(protein))
-    right_proteins_2D = (pd.concat([right_proteins_2D, right_protein_2D], axis = 0)).reset_index(drop = True)   
-
-all_proteins_2D = (pd.concat([left_proteins_2D, right_proteins_2D], axis = 0)).reset_index(drop=True)
+load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_labels, beta_labels, group_name, protein_name)
 print(all_proteins_2D)
+
+
+
+        
