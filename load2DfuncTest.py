@@ -37,4 +37,6 @@ def load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_la
         right_protein_2D['protein'] = pd.DataFrame(protein_name.get(protein))
         right_proteins_2D = (pd.concat([right_proteins_2D, right_protein_2D], axis = 0)).reset_index(drop = True)
     all_proteins_2D = (pd.concat([left_proteins_2D, right_proteins_2D], axis = 0)).reset_index(drop=True)
+    print(all_proteins_2D)
     return all_proteins_2D
+
