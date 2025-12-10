@@ -12,7 +12,8 @@ import glob
 import os
 import copy
 from fname import get_fname
-from load2DfuncTest import load_in_2D
+from load2DfuncTest import load_in_2D, generateDiags, load_in_diag
+
 
 # list proteins and label dictionaries
 
@@ -228,9 +229,13 @@ right_csv_files = glob.glob(fname_right)
 
 # load in whole 2D
 
-load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_labels, beta_labels, group_name, protein_name)
+all_proteins_2D = load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_labels, beta_labels, group_name, protein_name)
 print(all_proteins_2D)
 
+# load in diagonals
+
+all_proteins_diag = load_in_diag(proteins, left_csv_files, right_csv_files, class_labels, alpha_labels, beta_labels, group_name, protein_name)
+print(all_proteins_diag)
 
 
         

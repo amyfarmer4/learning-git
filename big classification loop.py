@@ -12,48 +12,53 @@ import glob
 import os
 import copy
 
+# import load in functions
+from fname import get_fname
+from load2DfuncTest import load_in_2D, generateDiags, load_in_diag
+
 # import things needed for pipeline building and GridSearching
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import GridSearchCV
-from sklearn.model_selection import cross_val_score
-from sklearn.feature_selection import SelectKBest
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GridSearchCV, cross_val_score, GroupKFold
 from sklearn.cluster import FeatureAgglomeration
-from sklearn.feature_selection import f_classif
-from sklearn.feature_selection import f_regression
-from sklearn.feature_selection import mutual_info_classif
-from sklearn.feature_selection import mutual_info_regression
+from sklearn.feature_selection import f_classif, f_regression, mutual_info_classif, mutual_info_regression, SelectKBest
 
 # import models
-from sklearn.svm import SVC
-from sklearn.svm import SVR
+from sklearn.svm import SVC, SVR
 from sklearn.multiclass import OneVsRestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn.ensemble import ExtraTreesRegressor
-from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.ensemble import AdaBoostRegressor
-from sklearn.ensemble import VotingClassifier
-from sklearn.ensemble import VotingRegressor
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor, ExtraTreesClassifier, ExtraTreesRegressor 
+from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor, AdaBoostClassifier, AdaBoostRegressor
+from sklearn.ensemble import VotingClassifier, VotingRegressor
 from sklearn.multioutput import RegressorChain
 
 # import metrics
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import cohen_kappa_score
-from sklearn.metrics import r2_score
-from sklearn.metrics import mean_squared_error
-from sklearn.metrics import root_mean_squared_error
+from sklearn.metrics import accuracy_score, cohen_kappa_score, r2_score, mean_squared_error, root_mean_squared_error
 
-# load in data
+# putting function here test
+
+def GridSearchPredict(x_train, y_train, x_test, y_test, group_train, test_protein, class_model, class_feature_method, pipeline, grid):
+    gkf = GroupKFold(n_splits = 5)
+    cv = GroupKFold(n_splits = 10)
+    grid_search = GridSearchCV(estimator = pipeline, param_grid = grid, cv = gkf)
+    grid_search.fit(X = x_train, y = y_train, groups = group_train)
+    parameters = grid_search.best_params_
+    hyperparameters = [parameters]
+    final_pipe = grid_search.best_estimator_
+    cross_val_scores = cross_val_score(final_pipe, X = x_train, y = y_train, cv = cv, groups = group_train)
+    training_acc = np.average(cross_val_scores)
+    training_acc_std = np.std(cross_val_scores)
+    final_pipe.fit(x_train, y_train)
+    y_predict = final_pipe.predict(x_test)
+    accuracy = accuracy_score(y_test, y_predict)
+    prediction = pd.DataFrame({'Protein': test_protein, 'Model': class_model, 'Feature Selection': class_feature_method,
+                               'Hyperparameters': hyperparameters, 'Training accuracy': training_acc, '+-': training_acc_std,
+                               'Testing accuracy': accuracy})
+    return prediction
+
+# Protein names and labels
 
 proteins = ['Myoglobin', 'HSA', 'Calmodulin', 'cytochrome c', 'phosphorylase b', 'Lysozyme', 'Creatine', 'DT diaphorase', 'Lipoxidase', 
             'Lactoferrin bovin', 'Protease', 'apo transferrin', 'Lactoferrin human', 'Catalase', 'Conalbumin', 'alpha amylase', 
@@ -259,150 +264,26 @@ protein_name = {'Myoglobin': ss('Myoglobin'),
                 'Peroxidase': ss_peroxidase('Peroxidase'),
                 'prealbumin': ss_prealbumin('prealbumin')}
 
+# extract appropriate files 
 
-left_csv_files = glob.glob('A:\Amy\Protein Library\LIFEtime library\LEFT detector\*.csv')
-right_csv_files = glob.glob('A:\Amy\Protein Library\LIFEtime library\RIGHT detector\*.csv')
+fname_left, fname_right = get_fname()
+left_csv_files = glob.glob(fname_left)
+right_csv_files = glob.glob(fname_right)
 
-# for whole 2D
+# load in whole 2D
 
-left_proteins_2D = pd.DataFrame()
-right_proteins_2D = pd.DataFrame()
-
-for protein in proteins:
-    left_protein_2D = pd.DataFrame()
-    for left_csv_file in left_csv_files:
-        if protein in left_csv_file:
-            df_2D = pd.read_csv(left_csv_file, delimiter = '\t')
-            stacked_left_df_2D = (pd.DataFrame(df_2D.loc[43:127, '1549.79349786178': '1737.31299582371'])).reset_index(drop = True).T.stack().to_frame().T
-            left_protein_2D = (pd.concat([left_protein_2D, stacked_left_df_2D], axis = 0)).reset_index(drop = True)
-    left_protein_2D['label'] = pd.DataFrame(class_labels.get(protein))
-    left_protein_2D['alpha'] = pd.DataFrame(alpha_labels.get(protein))
-    left_protein_2D['beta'] = pd.DataFrame(beta_labels.get(protein))
-    left_protein_2D['group'] = pd.DataFrame(group_name.get(protein))
-    left_protein_2D['protein'] = pd.DataFrame(protein_name.get(protein))
-    left_proteins_2D = (pd.concat([left_proteins_2D, left_protein_2D], axis = 0)).reset_index(drop = True)   
-    right_protein_2D = pd.DataFrame()
-    for right_csv_file in right_csv_files:
-        if protein in right_csv_file:
-            df_2D = pd.read_csv(right_csv_file, delimiter = '\t')
-            stacked_right_df_2D = (pd.DataFrame(df_2D.loc[16:100, '1549.79349786178': '1737.31299582371'])).reset_index(drop = True).T.stack().to_frame().T
-            right_protein_2D = (pd.concat([right_protein_2D, stacked_right_df_2D], axis = 0)).reset_index(drop = True)
-    right_protein_2D['label'] = pd.DataFrame(class_labels.get(protein))
-    right_protein_2D['alpha'] = pd.DataFrame(alpha_labels.get(protein))
-    right_protein_2D['beta'] = pd.DataFrame(beta_labels.get(protein))
-    right_protein_2D['group'] = pd.DataFrame(group_name.get(protein))
-    right_protein_2D['protein'] = pd.DataFrame(protein_name.get(protein))
-    right_proteins_2D = (pd.concat([right_proteins_2D, right_protein_2D], axis = 0)).reset_index(drop = True)   
-
-all_proteins_2D = (pd.concat([left_proteins_2D, right_proteins_2D], axis = 0)).reset_index(drop=True)
+all_proteins_2D = load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_labels, beta_labels, group_name, protein_name)
 print(all_proteins_2D)
 
-# for diagonals
+# load in diagonals
 
-left_proteins_diag = pd.DataFrame()
-right_proteins_diag = pd.DataFrame()
-
-for protein in proteins:
-    left_protein_diag = pd.DataFrame()
-    for left_csv_file in left_csv_files:
-        if protein in left_csv_file:
-            df_diag = pd.read_csv(left_csv_file, delimiter = '\t')        
-            ints = pd.DataFrame(df_diag.loc[43:127, '1549.79349786178': '1737.31299582371'])       
-            probe_freqs = pd.DataFrame(df_diag.loc[43:127, '0'])                                   
-            spectrum = pd.concat([probe_freqs, ints], axis = 1).reset_index(drop = True)      
-            pump_freq = []             
-            diff_df = pd.DataFrame()    
-            for (colname, colval) in spectrum.items():        
-                pump = float(colname)                         
-                pump_freq.append(pump)                        
-                probe = spectrum.iloc[:, 0].to_list()         
-                diff = pd.DataFrame([i - pump for i in probe])   
-                diff_df = pd.concat([diff_df, diff], axis = 1)   
-            diff_df.columns = [pump_freq]                        
-            select = pd.DataFrame()                              
-            for (colname, colval) in diff_df.items():            
-                column_values = (colval.values).tolist()         
-                selection = pd.DataFrame([(i*1 if (min(column_values, key = abs) == i) else i*0) for i in column_values])   
-                select = pd.concat([select, selection], axis = 1)   
-            select.columns = [pump_freq]                            
-            select_df = select.drop(select.columns[0], axis = 1)    
-            diag_row_index = []
-            for (colname, colval) in select_df.items():
-                column_values = (colval.values)
-                diag_row_index.append([i for i in range(len(column_values)) if column_values[i] != 0])   
-            row_index = []
-            for i in diag_row_index:
-                row_index.append(int(''.join(map(str, i))))   
-            spec = spectrum[spectrum.columns[1:]]
-            spec.columns = [list(range(0, 35))]               
-            diag_column_index = list(range(0, 35))
-            diagonal = []
-            for a, b in zip(row_index, diag_column_index):
-                diagonal.append(spec.iat[a, b])
-            print(diagonal)
-            diagonal_df = (pd.DataFrame(diagonal)).T
-            left_protein_diag = (pd.concat([left_protein_diag, diagonal_df], axis = 0)).reset_index(drop = True)
-    left_protein_diag['label'] = pd.DataFrame(class_labels.get(protein))
-    left_protein_diag['alpha'] = pd.DataFrame(alpha_labels.get(protein))
-    left_protein_diag['beta'] = pd.DataFrame(beta_labels.get(protein))
-    left_protein_diag['group'] = pd.DataFrame(group_name.get(protein))
-    left_protein_diag['protein'] = pd.DataFrame(protein_name.get(protein))
-    left_proteins_diag = pd.concat([left_proteins_diag, left_protein_diag], axis = 0).reset_index(drop = True)
-    right_protein_diag = pd.DataFrame()
-    for right_csv_file in right_csv_files:
-        if protein in right_csv_file:
-            df_diag = pd.read_csv(right_csv_file, delimiter = '\t')        
-            ints = pd.DataFrame(df_diag.loc[16:100, '1549.79349786178': '1737.31299582371'])
-            probe_freqs = pd.DataFrame(df_diag.loc[16:100, '0'])                                   
-            spectrum = pd.concat([probe_freqs, ints], axis = 1).reset_index(drop = True)      
-            pump_freq = []             
-            diff_df = pd.DataFrame()    
-            for (colname, colval) in spectrum.items():        
-                pump = float(colname)                         
-                pump_freq.append(pump)                        
-                probe = spectrum.iloc[:, 0].to_list()         
-                diff = pd.DataFrame([i - pump for i in probe])   
-                diff_df = pd.concat([diff_df, diff], axis = 1)   
-            diff_df.columns = [pump_freq]                        
-            select = pd.DataFrame()                              
-            for (colname, colval) in diff_df.items():            
-                column_values = (colval.values).tolist()         
-                selection = pd.DataFrame([(i*1 if (min(column_values, key = abs) == i) else i*0) for i in column_values])   
-                select = pd.concat([select, selection], axis = 1)   
-            select.columns = [pump_freq]                            
-            select_df = select.drop(select.columns[0], axis = 1)    
-            diag_row_index = []
-            for (colname, colval) in select_df.items():
-                column_values = (colval.values)
-                diag_row_index.append([i for i in range(len(column_values)) if column_values[i] != 0])   
-            row_index = []
-            for i in diag_row_index:
-                row_index.append(int(''.join(map(str, i))))   
-            spec = spectrum[spectrum.columns[1:]]
-            spec.columns = [list(range(0, 35))]               
-            diag_column_index = list(range(0, 35))
-            diagonal = []
-            for a, b in zip(row_index, diag_column_index):
-                diagonal.append(spec.iat[a, b])
-            print(diagonal)
-            diagonal_df = (pd.DataFrame(diagonal)).T
-            right_protein_diag = (pd.concat([right_protein_diag, diagonal_df], axis = 0)).reset_index(drop = True)
-    right_protein_diag['label'] = pd.DataFrame(class_labels.get(protein))
-    right_protein_diag['alpha'] = pd.DataFrame(alpha_labels.get(protein))
-    right_protein_diag['beta'] = pd.DataFrame(beta_labels.get(protein))
-    right_protein_diag['group'] = pd.DataFrame(group_name.get(protein))
-    right_protein_diag['protein'] = pd.DataFrame(protein_name.get(protein))
-    right_proteins_diag = pd.concat([right_proteins_diag, right_protein_diag], axis = 0).reset_index(drop = True)
-
-print(left_proteins_diag)
-print(right_proteins_diag)
-
-all_proteins_diag = (pd.concat([left_proteins_diag, right_proteins_diag], axis = 0)).reset_index(drop=True)
+all_proteins_diag = load_in_diag(proteins, left_csv_files, right_csv_files, class_labels, alpha_labels, beta_labels, group_name, protein_name)
 print(all_proteins_diag)
 
 ## looping through input data type (2D or diagonals), feature selection method, and model
 
 # define feature selection method
+
 pca = PCA(whiten = True)
 Agglom = FeatureAgglomeration()
 AF_class = SelectKBest(score_func = f_classif)
@@ -536,17 +417,9 @@ reg_models = [svr, dt_reg, knn_reg, rf_reg, ert_reg, HGBC_reg, adaboost_reg]
 
 # big loop - classification
 
-diag_PCA_results_df = pd.DataFrame()
-diag_Agglom_results_df = pd.DataFrame()
-diag_AF_results_df = pd.DataFrame()
-diag_MIR_results_df = pd.DataFrame()
-PCA_2D_results_df = pd.DataFrame()
-Agglom_2D_results_df = pd.DataFrame()
-AF_2D_results_df = pd.DataFrame()
-MIR_2D_results_df = pd.DataFrame()
+class_all_pred = pd.DataFrame()
 
 for input_type in input_types:
-    protein_7 = []
     for i, val in enumerate(proteins):
         test_protein = val
         train_proteins = copy.deepcopy(proteins)
@@ -569,152 +442,35 @@ for input_type in input_types:
         else:
             x_train = train_set[train_set.columns[:2975]]
             x_test = test_set[test_set.columns[:2975]]
-        protein_7 = [test_protein] * 7
-        gkf = GroupKFold(n_splits = 5)
-        cv = GroupKFold(n_splits = 10)
-        hyperparameters_PCA = []
-        training_accuracies_PCA = []
-        training_acc_stddev_PCA = []
-        testing_accuracy_PCA = []
-        hyperparameters_Agglom = []
-        training_accuracies_Agglom = []
-        training_acc_stddev_Agglom = []
-        testing_accuracy_Agglom = []
-        hyperparameters_AF = []
-        training_accuracies_AF = []
-        training_acc_stddev_AF = []
-        testing_accuracy_AF = []
-        hyperparameters_MIR = []
-        training_accuracies_MIR = []
-        training_acc_stddev_MIR = []
-        testing_accuracy_MIR = []
         for class_model in class_models:
             for class_feature_method in class_feature_methods:
+                pipeline = make_pipeline(StandardScaler(), class_feature_method, class_model)
+                grid = params_dict.get(class_model)
                 if class_feature_method is pca:
-                    print('feature selection method: PCA')
-                    pipeline_pca = make_pipeline(StandardScaler(), pca, class_model)
-                    grid_pca = params_dict.get(class_model)
-                    grid_pca = {**grid_pca, 'pca__n_components': [2, 3, 4, 5, 10]}
-                    print(f'GridSearch: {grid_pca}')
-                    grid_search_pca = GridSearchCV(estimator = pipeline_pca, param_grid = grid_pca, cv = gkf)
-                    grid_search_pca.fit(X = x_train, y = y_train, groups = group_train)
-                    parameters_pca = grid_search_pca.best_params_
-                    final_pipe_pca = grid_search_pca.best_estimator_
-                    hyperparameters_PCA.append(parameters_pca)
-                    cross_val_scores_PCA = cross_val_score(final_pipe_pca, X = x_train, y = y_train, cv = cv, groups = group_train)
-                    training_accuracies_PCA.append(np.average(cross_val_scores_PCA))
-                    training_acc_stddev_PCA.append(np.std(cross_val_scores_PCA))
-                    final_pipe_pca.fit(x_train, y_train)
-                    y_predict_PCA = final_pipe_pca.predict(x_test)
-                    accuracy_PCA = accuracy_score(y_test, y_predict_PCA)
-                    print(f'testing accuracy = {accuracy_PCA}')
-                    testing_accuracy_PCA.append(accuracy_PCA)
+                    print(f'feature selection method: PCA')
+                    grid = {**grid, 'pca__n_components': [2, 3, 4, 5, 10]}
+                    print(f'GridSearch: {grid}')
                 elif class_feature_method is Agglom:
-                    print('feature selection method: feature agglomeration')
-                    pipeline_Agglom = make_pipeline(StandardScaler(), Agglom, class_model)
-                    grid_Agglom = params_dict.get(class_model)
-                    grid_Agglom = {**grid_Agglom, 'featureagglomeration__n_clusters': [2, 3, 4, 5, 10]}
-                    print(f'GridSearch: {grid_Agglom}')
-                    grid_search_Agglom = GridSearchCV(estimator = pipeline_Agglom, param_grid = grid_Agglom, cv = gkf)
-                    grid_search_Agglom.fit(X = x_train, y = y_train, groups = group_train)
-                    parameters_Agglom = grid_search_Agglom.best_params_
-                    final_pipe_Agglom = grid_search_Agglom.best_estimator_
-                    hyperparameters_Agglom.append(parameters_Agglom)
-                    cross_val_scores_Agglom = cross_val_score(final_pipe_Agglom, X = x_train, y = y_train, cv = cv, groups = group_train)
-                    training_accuracies_Agglom.append(np.average(cross_val_scores_Agglom))
-                    training_acc_stddev_Agglom.append(np.std(cross_val_scores_Agglom))
-                    final_pipe_Agglom.fit(x_train, y_train)
-                    y_predict_Agglom = final_pipe_Agglom.predict(x_test)
-                    accuracy_Agglom = accuracy_score(y_test, y_predict_Agglom)
-                    print(f'testing accuracy = {accuracy_Agglom}')
-                    testing_accuracy_Agglom.append(accuracy_Agglom)
+                    print(f'feature selection method: Feature Agglomeration')
+                    grid = {**grid, 'featureagglomeration__n_clusters': [2, 3, 4, 5, 10]}
+                    print(f'GridSearch: {grid}')
                 elif class_feature_method is AF_class:
-                    print('feature selection method: f_classif')
-                    pipeline_AF = make_pipeline(StandardScaler(), AF_class, class_model)
-                    grid_AF = params_dict.get(class_model)
+                    print(f'feature selection method: ANOVA-F')
                     if input_type is all_proteins_diag:
-                        grid_AF = {**grid_AF, 'selectkbest__k': [5, 10, 15, 20, 25, 30]}
+                        grid = {**grid, 'selectkbest__k': [5, 10, 15, 20, 25, 30]}
                     else:
-                        grid_AF = {**grid_AF, 'selectkbest__k': [10, 20, 30, 40, 50]}
-                    print(f'GridSearch: {grid_AF}')
-                    grid_search_AF = GridSearchCV(estimator = pipeline_AF, param_grid = grid_AF, cv = gkf)
-                    grid_search_AF.fit(X = x_train, y = y_train, groups = group_train)
-                    parameters_AF = grid_search_AF.best_params_
-                    final_pipe_AF = grid_search_AF.best_estimator_
-                    hyperparameters_AF.append(parameters_AF)
-                    cross_val_scores_AF = cross_val_score(final_pipe_AF, X = x_train, y = y_train, cv = cv, groups = group_train)
-                    training_accuracies_AF.append(np.average(cross_val_scores_AF))
-                    training_acc_stddev_AF.append(np.std(cross_val_scores_AF))
-                    final_pipe_AF.fit(x_train, y_train)
-                    y_predict_AF = final_pipe_AF.predict(x_test)
-                    accuracy_AF = accuracy_score(y_test, y_predict_AF)
-                    print(f'testing accuracy = {accuracy_AF}')
-                    testing_accuracy_AF.append(accuracy_AF)
+                        grid = {**grid, 'selectkbest__k': [10, 20, 30, 40, 50]}
+                    print(f'GridSearch: {grid}')
                 else:
-                    print('feature selection method: mutual info classif')
-                    pipeline_MIR = make_pipeline(StandardScaler(), MIR_class, class_model)
-                    grid_MIR = params_dict.get(class_model)
+                    print('feature selection method: Mutual Info')
                     if input_type is all_proteins_diag:
-                        grid_MIR = {**grid_MIR, 'selectkbest__k': [5, 10, 15, 20, 25, 30]}
+                        grid = {**grid, 'selectkbest__k': [5, 10, 15, 20, 25, 30]}
                     else:
-                        grid_MIR = {**grid_MIR, 'selectkbest__k': [10, 20, 30, 40, 50]}
-                    print(f'GridSearch: {grid_MIR}')
-                    grid_search_MIR = GridSearchCV(estimator = pipeline_MIR, param_grid = grid_MIR, cv = gkf)
-                    grid_search_MIR.fit(X = x_train, y = y_train, groups = group_train)
-                    parameters_MIR = grid_search_MIR.best_params_
-                    final_pipe_MIR = grid_search_MIR.best_estimator_
-                    hyperparameters_MIR.append(parameters_MIR)
-                    cross_val_scores_MIR = cross_val_score(final_pipe_MIR, X = x_train, y = y_train, cv = cv, groups = group_train)
-                    training_accuracies_MIR.append(np.average(cross_val_scores_MIR))
-                    training_acc_stddev_MIR.append(np.std(cross_val_scores_MIR))
-                    final_pipe_MIR.fit(x_train, y_train)
-                    y_predict_MIR = final_pipe_MIR.predict(x_test)
-                    accuracy_MIR = accuracy_score(y_test, y_predict_MIR)
-                    print(f'testing accuracy = {accuracy_MIR}')
-                    testing_accuracy_MIR.append(accuracy_MIR)
-        results_PCA = pd.DataFrame({'protein': protein_7, 'model': class_models, 'hyperparameters': hyperparameters_PCA, 
-                                    'training accuracy': training_accuracies_PCA, '+-': training_acc_stddev_PCA, 
-                                    'testing accuracy': testing_accuracy_PCA})
-        print(results_PCA)
-        results_Agglom = pd.DataFrame({'protein': protein_7, 'model': class_models, 'hyperparameters': hyperparameters_Agglom, 
-                                       'training accuracy': training_accuracies_Agglom, '+-': training_acc_stddev_Agglom, 
-                                       'testing accuracy': testing_accuracy_Agglom})
-        print(results_Agglom)
-        results_AF = pd.DataFrame({'protein': protein_7, 'model': class_models, 'hyperparameters': hyperparameters_AF, 
-                                    'training accuracy': training_accuracies_AF, '+-': training_acc_stddev_AF, 
-                                    'testing accuracy': testing_accuracy_AF})
-        print(results_AF)
-        results_MIR = pd.DataFrame({'protein': protein_7, 'model': class_models, 'hyperparameters': hyperparameters_MIR, 
-                                    'training accuracy': training_accuracies_MIR, '+-': training_acc_stddev_MIR, 
-                                    'testing accuracy': testing_accuracy_MIR})
-        print(results_MIR)
-        if input_type is all_proteins_diag:
-            diag_PCA_results_df = pd.concat([diag_PCA_results_df, results_PCA], axis = 0).reset_index(drop = True)
-            diag_Agglom_results_df = pd.concat([diag_Agglom_results_df, results_Agglom], axis = 0).reset_index(drop = True)
-            diag_AF_results_df = pd.concat([diag_AF_results_df, results_AF], axis = 0).reset_index(drop = True)
-            diag_MIR_results_df = pd.concat([diag_MIR_results_df, results_MIR], axis = 0).reset_index(drop = True)
-        else:
-            PCA_2D_results_df = pd.concat([PCA_2D_results_df, results_PCA], axis = 0).reset_index(drop = True)
-            Agglom_2D_results_df = pd.concat([Agglom_2D_results_df, results_Agglom], axis = 0).reset_index(drop = True)
-            AF_2D_results_df = pd.concat([AF_2D_results_df, results_AF], axis = 0).reset_index(drop = True)
-            MIR_2D_results_df = pd.concat([MIR_2D_results_df, results_MIR], axis = 0).reset_index(drop = True)
-        print(diag_PCA_results_df)
-        print(diag_Agglom_results_df)
-        print(diag_AF_results_df)
-        print(diag_MIR_results_df)
-        print(PCA_2D_results_df)
-        print(Agglom_2D_results_df)
-        print(AF_2D_results_df)
-        print(MIR_2D_results_df)
-
-print(diag_PCA_results_df)
-print(diag_Agglom_results_df)
-print(diag_AF_results_df)
-print(diag_MIR_results_df)
-print(PCA_2D_results_df)
-print(Agglom_2D_results_df)
-print(AF_2D_results_df)
-print(MIR_2D_results_df)
-
-
-
+                        grid = {**grid, 'selectkbest__k': [10, 20, 30, 40, 50]}
+                    print(f'GridSearch: {grid}')
+                prediction = GridSearchPredict(x_train, y_train, x_test, y_test, group_train, test_protein, 
+                                               class_model, class_feature_method, pipeline, grid)
+                class_all_pred = pd.concat([class_all_pred, prediction], axis = 0).reset_index(drop = True)
+                print(class_all_pred)
+        
+print(class_all_pred)  
