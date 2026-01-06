@@ -35,7 +35,7 @@ def load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_la
         right_protein_2D['protein'] = pd.DataFrame(protein_name.get(protein))
         right_proteins_2D = (pd.concat([right_proteins_2D, right_protein_2D], axis = 0)).reset_index(drop = True)
     all_proteins_2D = (pd.concat([left_proteins_2D, right_proteins_2D], axis = 0)).reset_index(drop=True)
-    return all_proteins_2D
+    return left_proteins_2D, right_proteins_2D, all_proteins_2D
 
 def generateDiags(spectrum):
     import pandas as pd
@@ -107,7 +107,7 @@ def load_in_diag(proteins, left_csv_files, right_csv_files, class_labels, alpha_
         right_protein_diag['protein'] = pd.DataFrame(protein_name.get(protein))
         right_proteins_diag = pd.concat([right_proteins_diag, right_protein_diag], axis = 0).reset_index(drop = True)
     all_proteins_diag = (pd.concat([left_proteins_diag, right_proteins_diag], axis = 0)).reset_index(drop=True)
-    return all_proteins_diag
+    return left_proteins_diag, right_proteins_diag, all_proteins_diag
 
 
 
