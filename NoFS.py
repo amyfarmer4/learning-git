@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import glob
 import matplotlib.pyplot as plt
+import copy
 
 # import load in functions
 from fname import get_fname
@@ -24,6 +25,9 @@ from sklearn.feature_selection import f_classif, f_regression, mutual_info_class
 
 # import models
 from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
 from sklearn.multiclass import OneVsRestClassifier
 
 # import metrics
@@ -31,7 +35,7 @@ from sklearn.metrics import accuracy_score, cohen_kappa_score
 
 # GridSearch + Prediction function
 
-def GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, pipeline, grid):
+def GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, pipeline, grid, model):
     gkf = GroupKFold(n_splits = 5)
     cv = GroupKFold(n_splits = 10)
     grid_search = GridSearchCV(estimator = pipeline, param_grid = grid, cv = gkf, n_jobs = 8)
@@ -46,9 +50,27 @@ def GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, p
     y_predict = final_pipe.predict(x_test)
     accuracy = accuracy_score(y_test, y_predict)
     kappa = cohen_kappa_score(y_test, y_predict)
-    prediction = pd.DataFrame({'Test set': set_name, 'Hyperparameters': hyperparameters, 'Training accuracy': training_acc, 
+    prediction = pd.DataFrame({'Model': [model], 'Test set': set_name, 'Hyperparameters': hyperparameters, 'Training accuracy': training_acc, 
                                '+-': training_acc_std,'Testing accuracy': accuracy, 'Kappa': kappa})
-    return prediction
+    return prediction, y_predict, final_pipe
+
+def GridSearchPredictV2(x_train, y_train, x_test, y_test, group_train, test_protein, pipeline, grid):
+    gkf = GroupKFold(n_splits = 5)
+    cv = GroupKFold(n_splits = 10)
+    grid_search = GridSearchCV(estimator = pipeline, param_grid = grid, cv = gkf)
+    grid_search.fit(X = x_train, y = y_train, groups = group_train)
+    parameters = grid_search.best_params_
+    hyperparameters = [parameters]
+    final_pipe = grid_search.best_estimator_
+    cross_val_scores = cross_val_score(final_pipe, X = x_train, y = y_train, cv = cv, groups = group_train)
+    training_acc = np.average(cross_val_scores)
+    training_acc_std = np.std(cross_val_scores)
+    final_pipe.fit(x_train, y_train)
+    y_predict = final_pipe.predict(x_test)
+    accuracy = accuracy_score(y_test, y_predict)
+    prediction = pd.DataFrame({'Protein': test_protein, 'Hyperparameters': hyperparameters, 'Training accuracy': training_acc, 
+                               '+-': training_acc_std, 'Testing accuracy': accuracy})
+    return prediction, y_predict, final_pipe
 
 # list proteins and label dictionaries
 
@@ -267,7 +289,40 @@ right_csv_files = glob.glob(fname_right)
 left_2D, right_2D, all_2D = load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_labels, beta_labels, group_name, protein_name)
 print(all_2D)
 
-# building separate left and right models
+# model information
+
+svc = SVC(decision_function_shape = 'ovr', class_weight = 'balanced')
+dt = DecisionTreeClassifier()
+knn = KNeighborsClassifier()
+rf = RandomForestClassifier()
+HGBC = HistGradientBoostingClassifier()
+
+svm_params = {'svc__C': [0.01, 0.1, 1, 10, 100],
+              'svc__gamma': [0.01, 0.1, 1, 10, 100]}
+
+dt_params = {'decisiontreeclassifier__max_depth': [None, 1, 2, 3],
+             'decisiontreeclassifier__criterion': ['gini', 'entropy']}
+
+knn_params = {'kneighborsclassifier__n_neighbors': [1, 2, 3, 4, 5, 10], 
+              'kneighborsclassifier__weights': ['uniform', 'distance'], 
+              'kneighborsclassifier__metric': ['euclidean', 'manhattan', 'minkowski']}
+
+rf_params = {'randomforestclassifier__n_estimators': [50, 100, 200, 500],
+             'randomforestclassifier__max_depth': [3, 5, 10, None],
+             'randomforestclassifier__criterion' : ['gini', 'entropy', 'log_loss']}
+
+HGBC_params = {'histgradientboostingclassifier__learning_rate': [0.01, 0.1, 0.2, 1],
+               'histgradientboostingclassifier__max_depth': [3, 5, 10, None]}
+
+params_dict = {svc : svm_params,
+               dt : dt_params,
+               knn : knn_params,
+               rf : rf_params,
+               HGBC : HGBC_params}
+
+models = [HGBC]
+
+# building separate left and right models for 80_20
 
 test_proteins_1 = ['Creatine', 'Lipoxidase', 'Protease', 'alpha amylase', 'Ovalbumin', 'b glucuronidase', 'TCI']
 test_proteins_2 = ['Calmodulin', 'cytochrome c', 'DT diaphorase', 'Lactoferrin bovin', 'Conalbumin', 'Ovalbumin', 'Elastase']
@@ -275,13 +330,6 @@ test_proteins_3 = ['HSA', 'Protease', 'Choline oxidase', 'Gly 3 phos', 'Ubiquiti
 
 test_proteins = [test_proteins_1, test_proteins_2, test_proteins_3]
 test_set_names = ['test_1', 'test_2', 'test_3']
-
-svc = SVC(decision_function_shape = 'ovr', class_weight = 'balanced')
-
-svm_params = {'svc__C': [0.01, 0.1, 1, 10, 100],
-              'svc__gamma': [0.01, 0.1, 1, 10, 100]}
-
-params_dict = {svc : svm_params}
 
 classification_80_20 = pd.DataFrame()
 for lst, set_name in zip(test_proteins, test_set_names):
@@ -302,14 +350,66 @@ for lst, set_name in zip(test_proteins, test_set_names):
     y_test = test_labels.values.ravel()
     group_test = (pd.DataFrame(test_set.group)).values.ravel()
     group_train = (pd.DataFrame(train_set.group)).values.ravel()
-    grid = params_dict.get(svc)
     x_train = train_set[train_set.columns[:2975]]
     x_test = test_set[test_set.columns[:2975]]
-    pipeline = make_pipeline(StandardScaler(), svc)
-    print(f'GridSearch: {grid}')
-    prediction = GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, pipeline, grid)
-    classification_80_20 = pd.concat([classification_80_20, prediction], axis = 0).reset_index(drop = True)
-    print(classification_80_20)
+    for model in models:
+        pipeline = make_pipeline(StandardScaler(), model)
+        grid = params_dict.get(model)
+        print(f'GridSearch: {grid}')
+        prediction, y_predict, final_pipe = GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, pipeline, grid, model)
+        classification_80_20 = pd.concat([classification_80_20, prediction], axis = 0).reset_index(drop = True)
+        print(classification_80_20)
 
 print(classification_80_20)  
 
+classification_80_20.to_csv('/home/amy/NoFeatureSelection/classification_80_20_dt_knn_rf_HGBC.csv')
+
+# LOO with predict_proba
+
+LOO_classification = pd.DataFrame()
+probabilities_dfs = []
+for i, val in enumerate(proteins):
+    test_protein = val
+    train_proteins = copy.deepcopy(proteins)
+    train_proteins.pop(i)
+    print(f'test protein: {test_protein}')
+    test_set = all_2D[all_2D['protein'].str.contains(test_protein)]
+    train_set = pd.DataFrame()
+    for train_protein in train_proteins:
+        train_set_1 = all_2D[all_2D['protein'].str.contains(train_protein)]
+        train_set = pd.concat([train_set, train_set_1], axis = 0).reset_index(drop = True)
+    test_labels = pd.DataFrame(test_set.label)
+    train_labels = pd.DataFrame(train_set.label)
+    y_train = train_labels.values.ravel()
+    y_test = test_labels.values.ravel()
+    group_test = (pd.DataFrame(test_set.group)).values.ravel()
+    group_train = (pd.DataFrame(train_set.group)).values.ravel()
+    x_train = train_set[train_set.columns[:2975]]
+    x_test = test_set[test_set.columns[:2975]]
+    for model in models:
+        pipeline = make_pipeline(StandardScaler(), model)
+        grid = params_dict.get(model)
+        print(f'GridSearch: {grid}')
+        prediction, y_predict, final_pipe = GridSearchPredictV2(x_train, y_train, x_test, y_test, group_train, test_protein, pipeline, grid)
+        LOO_classification = pd.concat([LOO_classification, prediction], axis = 0).reset_index(drop = True)
+        print(LOO_classification)
+        spectrum = []
+        predicted_class = []
+        class_0_prob = []
+        class_1_prob = []
+        class_2_prob = []
+        probabilities = final_pipe.predict_proba(x_test)
+        for i, (pred, prob) in enumerate(zip(y_predict, probabilities)):
+            spectrum.append(i+1)
+            predicted_class.append(pred)
+            class_0_prob.append(prob[0])
+            class_1_prob.append(prob[1])
+            class_2_prob.append(prob[2])
+        probabilities_df = pd.DataFrame({'spectrum': spectrum, 'predicted class': predicted_class, 'class_0_prob': class_0_prob, 
+                                         'class_1_prob': class_1_prob, 'class_2_prob': class_2_prob})  
+        print(probabilities_df)
+        probabilities_dfs.append(probabilities_df)
+
+print(LOO_classification)  
+
+LOO_classification.to_csv('/home/amy/NoFeatureSelection/classification_80_20_dt_knn_rf_HGBC.csv')
