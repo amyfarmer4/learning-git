@@ -413,3 +413,8 @@ for i, val in enumerate(proteins):
 print(LOO_classification)  
 
 LOO_classification.to_csv('/home/amy/NoFeatureSelection/classification_80_20_dt_knn_rf_HGBC.csv')
+
+for i in range(0, len(probabilities_dfs)):
+    globals()[f'probabilities_dfs{i+1}'] = probabilities_dfs[i]
+    print(probabilities_dfs[i])
+    probabilities_dfs[i].to_csv('A:\\Amy\\Protein Library\\LIFEtime library\\automated classification\\probabilities\\probabilities '+str([i])+'.csv')
