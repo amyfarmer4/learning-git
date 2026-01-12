@@ -57,7 +57,7 @@ def GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, p
 def GridSearchPredictV2(x_train, y_train, x_test, y_test, group_train, test_protein, pipeline, grid):
     gkf = GroupKFold(n_splits = 5)
     cv = GroupKFold(n_splits = 10)
-    grid_search = GridSearchCV(estimator = pipeline, param_grid = grid, cv = gkf)
+    grid_search = GridSearchCV(estimator = pipeline, param_grid = grid, cv = gkf, n_jobs = 8)
     grid_search.fit(X = x_train, y = y_train, groups = group_train)
     parameters = grid_search.best_params_
     hyperparameters = [parameters]
@@ -331,38 +331,38 @@ test_proteins_3 = ['HSA', 'Protease', 'Choline oxidase', 'Gly 3 phos', 'Ubiquiti
 test_proteins = [test_proteins_1, test_proteins_2, test_proteins_3]
 test_set_names = ['test_1', 'test_2', 'test_3']
 
-classification_80_20 = pd.DataFrame()
-for lst, set_name in zip(test_proteins, test_set_names):
-    print(f'test proteins: {lst}')
-    train_proteins = [i for i in proteins if i not in lst]
-    print(f'train proteins: {train_proteins}')
-    test_set = pd.DataFrame()
-    for i in lst:
-        test_set_1 = all_2D[all_2D['protein'].str.contains(i)]
-        test_set = pd.concat([test_set, test_set_1], axis = 0).reset_index(drop=True)
-    train_set = pd.DataFrame()
-    for train_protein in train_proteins:
-        train_set_1 = all_2D[all_2D['protein'].str.contains(train_protein)]
-        train_set = pd.concat([train_set, train_set_1], axis = 0).reset_index(drop=True)
-    test_labels = pd.DataFrame(test_set.label)
-    train_labels = pd.DataFrame(train_set.label)
-    y_train = train_labels.values.ravel()
-    y_test = test_labels.values.ravel()
-    group_test = (pd.DataFrame(test_set.group)).values.ravel()
-    group_train = (pd.DataFrame(train_set.group)).values.ravel()
-    x_train = train_set[train_set.columns[:2975]]
-    x_test = test_set[test_set.columns[:2975]]
-    for model in models:
-        pipeline = make_pipeline(StandardScaler(), model)
-        grid = params_dict.get(model)
-        print(f'GridSearch: {grid}')
-        prediction, y_predict, final_pipe = GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, pipeline, grid, model)
-        classification_80_20 = pd.concat([classification_80_20, prediction], axis = 0).reset_index(drop = True)
-        print(classification_80_20)
+#classification_80_20 = pd.DataFrame()
+#for lst, set_name in zip(test_proteins, test_set_names):
+#    print(f'test proteins: {lst}')
+#   train_proteins = [i for i in proteins if i not in lst]
+#   print(f'train proteins: {train_proteins}')
+#   test_set = pd.DataFrame()
+#   for i in lst:
+#       test_set_1 = all_2D[all_2D['protein'].str.contains(i)]
+#       test_set = pd.concat([test_set, test_set_1], axis = 0).reset_index(drop=True)
+#   train_set = pd.DataFrame()
+#   for train_protein in train_proteins:
+#       train_set_1 = all_2D[all_2D['protein'].str.contains(train_protein)]
+#       train_set = pd.concat([train_set, train_set_1], axis = 0).reset_index(drop=True)
+#   test_labels = pd.DataFrame(test_set.label)
+#   train_labels = pd.DataFrame(train_set.label)
+#   y_train = train_labels.values.ravel()
+#   y_test = test_labels.values.ravel()
+#   group_test = (pd.DataFrame(test_set.group)).values.ravel()
+#   group_train = (pd.DataFrame(train_set.group)).values.ravel()
+#   x_train = train_set[train_set.columns[:2975]]
+#   x_test = test_set[test_set.columns[:2975]]
+#   for model in models:
+#       pipeline = make_pipeline(StandardScaler(), model)
+#       grid = params_dict.get(model)
+#       print(f'GridSearch: {grid}')
+#       prediction, y_predict, final_pipe = GridSearchPredict(x_train, y_train, x_test, y_test, group_train, set_name, pipeline, grid, model)
+#       classification_80_20 = pd.concat([classification_80_20, prediction], axis = 0).reset_index(drop = True)
+#       print(classification_80_20)
 
-print(classification_80_20)  
+#print(classification_80_20)  
 
-classification_80_20.to_csv('/home/amy/NoFeatureSelection/classification_80_20_dt_knn_rf_HGBC.csv')
+#classification_80_20.to_csv('/home/amy/NoFeatureSelection/classification_80_20_dt_knn_rf_HGBC.csv')
 
 # LOO with predict_proba
 
@@ -412,9 +412,9 @@ for i, val in enumerate(proteins):
 
 print(LOO_classification)  
 
-LOO_classification.to_csv('/home/amy/NoFeatureSelection/classification_80_20_dt_knn_rf_HGBC.csv')
+LOO_classification.to_csv('/home/amy/NoFeatureSelection/LOO_HGBC/LOO_classification.csv')
 
 for i in range(0, len(probabilities_dfs)):
     globals()[f'probabilities_dfs{i+1}'] = probabilities_dfs[i]
     print(probabilities_dfs[i])
-    probabilities_dfs[i].to_csv('A:\\Amy\\Protein Library\\LIFEtime library\\automated classification\\probabilities\\probabilities '+str([i])+'.csv')
+    probabilities_dfs[i].to_csv('/home/amy/NoFeatureSelection/LOO_HGBC/probabilities/probabilities '+str([i])+'.csv')
