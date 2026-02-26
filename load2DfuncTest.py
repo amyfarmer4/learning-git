@@ -26,7 +26,7 @@ def load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_la
         for right_csv_file in right_csv_files:
             if protein in right_csv_file:
                 df_2D = pd.read_csv(right_csv_file, delimiter = '\t')
-                stacked_right_df_2D = (pd.DataFrame(df_2D.loc[16:100, '1549.79349786178': '1737.31299582371'])).reset_index(drop = True).T.stack().to_frame().T
+                stacked_right_df_2D = (pd.DataFrame(df_2D.loc[13:97, '1549.79349786178': '1737.31299582371'])).reset_index(drop = True).T.stack().to_frame().T
                 right_protein_2D = (pd.concat([right_protein_2D, stacked_right_df_2D], axis = 0)).reset_index(drop = True)
         right_protein_2D['label'] = pd.DataFrame(class_labels.get(protein))
         right_protein_2D['alpha'] = pd.DataFrame(alpha_labels.get(protein))
