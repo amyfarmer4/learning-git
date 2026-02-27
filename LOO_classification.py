@@ -39,7 +39,7 @@ from sklearn.metrics import accuracy_score, cohen_kappa_score
 def GridSearchPredictV2(x_train, y_train, x_test, y_test, group_train, test_protein, pipeline, grid):
     gkf = GroupKFold(n_splits = 5)
     cv = GroupKFold(n_splits = 10)
-    grid_search = GridSearchCV(estimator = pipeline, param_grid = grid, cv = gkf)
+    grid_search = GridSearchCV(estimator = pipeline, param_grid = grid, cv = gkf, n_jobs =  12)
     grid_search.fit(X = x_train, y = y_train, groups = group_train)
     parameters = grid_search.best_params_
     hyperparameters = [parameters]
@@ -276,7 +276,8 @@ print(all_2D)
 svc = SVC(decision_function_shape = 'ovr', class_weight = 'balanced', probability = True)
 AF_class = SelectKBest(score_func = f_classif)
 
-svm_params = {'svc__C': [0.01, 0.1, 1, 10, 100]}
+svm_params = {'svc__C': [0.01, 0.1, 1, 10, 100],
+              'svc__gamma': [0.01, 0.1, 1, 10, 100]}
 
 params_dict = {svc : svm_params}
 
@@ -326,4 +327,11 @@ for i, val in enumerate(proteins):
     print(probabilities_df)
     probabilities_dfs.append(probabilities_df)
 
-print(LOO_classification)  
+print(LOO_classification) 
+
+LOO_classification.to_csv('/home/amy/classification/translated/SVC_LOO_translated.csv')
+
+for i in range(0, len(probabilities_dfs)):
+    globals()[f'probabilities_dfs{i+1}'] = probabilities_dfs[i]
+    print(probabilities_dfs[i])
+    probabilities_dfs[i].to_csv('/home/amy/classification/translated/probabilities/probabilities '+str([i])+'.csv') 
