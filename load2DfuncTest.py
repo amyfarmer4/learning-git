@@ -37,6 +37,48 @@ def load_in_2D(proteins, left_csv_files, right_csv_files, class_labels, alpha_la
     all_proteins_2D = (pd.concat([left_proteins_2D, right_proteins_2D], axis = 0)).reset_index(drop=True)
     return left_proteins_2D, right_proteins_2D, all_proteins_2D
 
+def load_in_2Dv2(proteins, files, delimiter, pr1, pr2, pu1, pu2, class_labels, alpha_labels, beta_labels, group_name, protein_name):
+    import pandas as pd
+    spectra = pd.DataFrame()
+    for protein in proteins:
+        count = 0
+        protein_spectra = pd.DataFrame()
+        for file in files:
+            if protein in file:
+                count += 1
+                df = pd.read_csv(file, delimiter = delimiter)
+                vector = (pd.DataFrame(df.iloc[pr1:pr2, pu1:pu2])).reset_index(drop = True).T.stack().to_frame().T
+                protein_spectra = pd.concat([protein_spectra, vector], axis = 0).reset_index(drop=True)
+            else:
+                pass
+        protein_spectra['label'] = [class_labels.get(protein)] * count
+        protein_spectra['alpha'] = [alpha_labels.get(protein)] * count
+        protein_spectra['beta'] = [beta_labels.get(protein)] * count
+        protein_spectra['group'] = [group_name.get(protein)] * count
+        protein_spectra['protein'] = [protein_name.get(protein)] * count
+        spectra = (pd.concat([spectra, protein_spectra], axis = 0)).reset_index(drop = True)     
+    return spectra
+
+def load_in_2Dv3(proteins, files, delimiter, pr1, pr2, pu1, pu2, class_labels, alpha_labels, beta_labels, group_name, protein_name):
+    import pandas as pd
+    spectra = pd.DataFrame()
+    for protein in proteins:
+        for file in files:
+            if protein in file:
+                df = pd.read_csv(file, delimiter = delimiter)
+                vector = (pd.DataFrame(df.iloc[pr1:pr2, pu1:pu2])).reset_index(drop = True).T.stack().to_frame().T
+                vector.columns = [i for i in range(len(vector.columns))]
+                vector['label'] = [class_labels.get(protein)]
+                vector['alpha'] = [alpha_labels.get(protein)] 
+                vector['beta'] = [beta_labels.get(protein)] 
+                vector['group'] = [group_name.get(protein)] 
+                vector['protein'] = [protein_name.get(protein)] 
+                spectra = pd.concat([spectra, vector], axis = 0).reset_index(drop=True)
+            else:
+                pass
+    return spectra
+
+
 def generateDiags(spectrum):
     import pandas as pd
     pump_freq = []             
